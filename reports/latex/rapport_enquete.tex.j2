@@ -63,7 +63,7 @@ provisoires et leur precision est inferieure a celle prevue au protocole.}
 
 \subsection{Avancement par service de collecte}
 
-\begin{table}[h]
+\begin{table}[H]
 \centering
 \caption{Realisation de la collecte selon le mode}
 \begin{tabular}{lrrrrr}
@@ -86,7 +86,7 @@ provisoires et leur precision est inferieure a celle prevue au protocole.}
 \BLOCK{ if courbe_collecte }
 \subsection{Rythme de la collecte}
 
-\begin{figure}[h]
+\begin{figure}[H]
 \centering
 \begin{tikzpicture}
 \begin{axis}[
@@ -140,7 +140,7 @@ l'uniformite des reponses a echelle. Les entretiens dont le score est inferieur
 a 0,6 sont soumis au controle du superviseur.
 
 \BLOCK{ if qualite_alertes }
-\begin{table}[h]
+\begin{table}[H]
 \centering
 \caption{Enqueteurs dont le score de qualite moyen est le plus faible}
 \begin{tabular}{llrrr}
@@ -164,7 +164,7 @@ a 0,6 sont soumis au controle du superviseur.
 \subsection{Variables qualitatives}
 
 \BLOCK{ for tableau in tris_a_plat }
-\begin{table}[h]
+\begin{table}[H]
 \centering
 \caption{\VAR{ tableau.libelle | tex }}
 \begin{tabular}{lrrr}
@@ -184,7 +184,12 @@ a 0,6 sont soumis au controle du superviseur.
 
 \subsection{Variables quantitatives}
 
-\begin{longtable}{lrrrrr}
+%% Six colonnes dont quatre de montants : sur des revenus a six chiffres, la
+%% largeur naturelle deborde de la justification et la derniere colonne se
+%% trouve coupee. Corps reduit et colonnes resserrees pour ce seul tableau.
+{\small
+\setlength{\tabcolsep}{4pt}
+\begin{longtable}{@{}lrrrrr@{}}
 \caption{Statistiques descriptives des variables quantitatives}\\
 \toprule
 \textbf{Variable} & \textbf{N} & \textbf{Moyenne} & \textbf{Moy. ponderee}
@@ -204,6 +209,7 @@ a 0,6 sont soumis au controle du superviseur.
  & $\pm$\,\VAR{ ligne.ic95 }\\
 \BLOCK{ endfor }
 \end{longtable}
+}
 
 \BLOCK{ if effet_mode }
 \subsection{Effet de mode}
@@ -212,7 +218,7 @@ L'enquete etant multimode, les ecarts observes entre canaux de collecte doivent
 etre examines avant toute interpretation : ils peuvent traduire une difference
 reelle de population autant qu'un effet du mode d'administration.
 
-\begin{table}[h]
+\begin{table}[H]
 \centering
 \caption{Modalites presentant les ecarts les plus marques entre modes
 (points de pourcentage ponderes)}

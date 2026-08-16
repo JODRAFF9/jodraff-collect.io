@@ -304,6 +304,47 @@ class TestRapport:
         assert escape_tex("a_b") == r"a\_b"
         assert escape_tex(None) == ""
 
+    def test_les_traits_d_union_ne_deviennent_pas_des_tirets(self):
+        """LaTeX transforme -- en tiret demi-cadratin et --- en cadratin.
+
+        Un libelle de questionnaire doit etre restitue tel qu'il a ete saisi.
+        """
+        from reports.generate import escape_tex
+
+        assert escape_tex("Oui -- Non") == "Oui -{}- Non"
+        assert escape_tex("a --- b") == "a -{}-{}- b"
+        # Un trait d'union isole reste intact : il ne forme aucune ligature.
+        assert escape_tex("non-reponse") == "non-reponse"
+
+    def test_valeur_absente_sans_tiret(self):
+        """Une valeur manquante ne doit pas s'afficher par un tiret.
+
+        Dans une colonne de chiffres, ce trait se confond avec un signe
+        negatif.
+        """
+        from reports.generate import VALEUR_ABSENTE, fr_number
+
+        assert fr_number(None) == VALEUR_ABSENTE
+        assert "-" not in VALEUR_ABSENTE
+
+    def test_aucun_tiret_long_dans_le_document(self, entrepot_construit, tmp_path):
+        """Controle sur le document reellement produit, corps du texte compris."""
+        from reports.generate import generate
+
+        enquete = entrepot_construit
+        generate(enquete.code, output_dir=tmp_path, build_pdf=False)
+        source = (tmp_path / f"rapport_{enquete.code.lower()}.tex").read_text(encoding="utf-8")
+
+        corps = [
+            ligne
+            for ligne in source.splitlines()
+            # Les commentaires de gabarit utilisent des filets de tirets et ne
+            # sont pas composes dans le document.
+            if not ligne.lstrip().startswith("%")
+        ]
+        fautifs = [ligne for ligne in corps if "--" in ligne]
+        assert fautifs == [], f"tirets longs dans le document : {fautifs[:3]}"
+
 
 class TestRobustesseDuPipeline:
     """Comportements du pipeline qui n'apparaissent qu'a la deuxieme execution

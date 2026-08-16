@@ -46,19 +46,30 @@ _TEX_ESCAPES = {
 def escape_tex(value) -> str:
     """Echappe une valeur destinee au corps du document LaTeX.
 
-    Sans cet echappement, un libelle de modalite contenant « & » ou « % »
-    — cas courant dans un questionnaire — casse la compilation.
+    Deux problemes distincts sont traites ici. D'abord l'echappement : un
+    libelle de modalite contenant « & » ou « % », cas courant dans un
+    questionnaire, casse la compilation. Ensuite les ligatures de tirets :
+    LaTeX transforme deux traits d'union consecutifs en tiret demi-cadratin et
+    trois en tiret cadratin. Un libelle saisi « Oui -- Non » ne serait donc pas
+    restitue tel quel. On insere un groupe vide entre les traits pour rompre la
+    ligature, sans rien changer au texte affiche.
     """
     if value is None:
         return ""
-    text = str(value)
-    return "".join(_TEX_ESCAPES.get(char, char) for char in text)
+    text = "".join(_TEX_ESCAPES.get(char, char) for char in str(value))
+    return re.sub(r"-{2,}", lambda m: "-" + "{}-" * (len(m.group()) - 1), text)
+
+
+# Marque de valeur absente dans les tableaux. On evite la suite « -- », que
+# LaTeX transforme en tiret demi-cadratin : dans une colonne de chiffres, ce
+# trait se confond avec un signe negatif.
+VALEUR_ABSENTE = "n.d."
 
 
 def fr_number(value, decimals: int = 1) -> str:
     """Formate un nombre a la francaise (virgule decimale)."""
     if value is None:
-        return "--"
+        return VALEUR_ABSENTE
     return f"{float(value):.{decimals}f}".replace(".", ",")
 
 
@@ -270,7 +281,7 @@ def _shape_context(
             "titre": survey["survey_title"],
             "code": survey["survey_code"],
             "organisation": "Jodraff Collect",
-            "modes": survey["collection_services_label"] or "--",
+            "modes": survey["collection_services_label"] or VALEUR_ABSENTE,
             "cible": cible,
             "version_questionnaire": instrument.get("questionnaire_version") or 1,
             "empreinte_schema": instrument.get("schema_hash") or "non publiee",
@@ -317,7 +328,7 @@ def _shape_context(
         ],
         "rendement": [
             {
-                "matricule": row["matricule"] or "--",
+                "matricule": row["matricule"] or VALEUR_ABSENTE,
                 "service": row["collection_service"],
                 "jours": row["days_worked"] or 0,
                 "exploitables": row["interviews_usable"] or 0,
@@ -328,7 +339,7 @@ def _shape_context(
         ],
         "qualite_alertes": [
             {
-                "matricule": row["matricule"] or "--",
+                "matricule": row["matricule"] or VALEUR_ABSENTE,
                 "service": row["collection_service"],
                 "entretiens": row["interviews"] or 0,
                 "score": fr_number(row["avg_quality_score"], 3),
@@ -351,7 +362,7 @@ def _shape_context(
                 "code": row["question_code"],
                 "libelle": row["question_label"] or "",
                 "type": row["question_type"],
-                "role": row["analysis_role"] or "--",
+                "role": row["analysis_role"] or VALEUR_ABSENTE,
             }
             for row in dictionnaire
         ],
