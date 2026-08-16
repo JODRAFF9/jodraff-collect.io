@@ -112,6 +112,7 @@ SELECT
     question_order,
     questionnaire_key,
     questionnaire_version,
+    schema_hash,
     survey_key,
     -- Ordre absolu dans le questionnaire, pour restituer la sequence exacte.
     ROW_NUMBER() OVER (

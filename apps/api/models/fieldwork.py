@@ -51,7 +51,7 @@ class SampleUnit(Base, IdMixin, TimestampMixin):
     sampling_weight: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
     attributes: Mapped[dict] = mapped_column(default=dict)
 
-    assignments: Mapped[list["Assignment"]] = relationship(back_populates="sample_unit")
+    assignments: Mapped[list[Assignment]] = relationship(back_populates="sample_unit")
 
 
 class Assignment(Base, IdMixin, TimestampMixin):
@@ -79,7 +79,7 @@ class Assignment(Base, IdMixin, TimestampMixin):
     notes: Mapped[str | None] = mapped_column(Text)
 
     sample_unit: Mapped[SampleUnit] = relationship(back_populates="assignments")
-    interviews: Mapped[list["Interview"]] = relationship(back_populates="assignment")
+    interviews: Mapped[list[Interview]] = relationship(back_populates="assignment")
 
 
 class Interview(Base, IdMixin, TimestampMixin):
@@ -130,10 +130,10 @@ class Interview(Base, IdMixin, TimestampMixin):
     sync_batch_id: Mapped[str | None] = mapped_column(ForeignKey("sync_batches.id"), index=True)
 
     assignment: Mapped[Assignment | None] = relationship(back_populates="interviews")
-    answers: Mapped[list["Answer"]] = relationship(
+    answers: Mapped[list[Answer]] = relationship(
         back_populates="interview", cascade="all, delete-orphan"
     )
-    paradata: Mapped[list["Paradata"]] = relationship(
+    paradata: Mapped[list[Paradata]] = relationship(
         back_populates="interview", cascade="all, delete-orphan"
     )
 

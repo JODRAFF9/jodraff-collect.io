@@ -1,0 +1,26 @@
+# Copier en terraform.tfvars et adapter avant tout deploiement.
+
+project_name = "jodraff"
+environment  = "dev"
+location     = "francecentral"
+
+# Groupe Entra ID administrateur de l'instance Azure SQL.
+# Recuperer l'identifiant : az ad group show --group "<nom>" --query id -o tsv
+sql_admin_group_name      = "grp-jodraff-sql-admins"
+sql_admin_group_object_id = "00000000-0000-0000-0000-000000000000"
+
+# Dimensionnement. En production, viser au minimum GP_Standard_D2s_v3 et S3.
+postgres_sku = "B_Standard_B2s"
+sql_sku      = "S1"
+
+api_image        = "ghcr.io/jodraff9/jodraff-collect-api:latest"
+api_min_replicas = 1
+api_max_replicas = 10
+
+# A passer a false en production, avec points de terminaison prives.
+allow_public_access = true
+
+tags = {
+  proprietaire = "direction-des-etudes"
+  cout_centre  = "ENQ-2026"
+}

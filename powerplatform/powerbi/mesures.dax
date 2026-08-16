@@ -1,0 +1,214 @@
+// Mesures DAX du modele semantique Power BI « Jodraff Collect ».
+// A creer dans une table de mesures dediee (_Mesures), sans colonnes.
+//
+// Convention : toute statistique destinee a etre interpretee au niveau de la
+// population passe par les mesures ponderees. Les mesures brutes servent au
+// pilotage operationnel (combien d'entretiens ont ete faits), pas a l'inference.
+
+// =========================================================================
+// 1. Volumes de collecte
+// =========================================================================
+
+Entretiens =
+COUNTROWS ( fact_interview )
+
+Entretiens exploitables =
+SUM ( fact_interview[usable_count] )
+
+Entretiens valides =
+SUM ( fact_interview[validated_count] )
+
+Entretiens rejetes =
+SUM ( fact_interview[rejected_count] )
+
+Entretiens partiels =
+SUM ( fact_interview[partial_count] )
+
+// Effectif pondere : l'estimateur a utiliser des qu'on parle de population.
+Effectif pondere =
+SUM ( fact_interview[weighted_usable] )
+
+
+// =========================================================================
+// 2. Avancement
+// =========================================================================
+
+Cible echantillon =
+SUM ( dim_survey[target_sample] )
+
+Taux de realisation =
+DIVIDE ( [Entretiens exploitables], [Cible echantillon] )
+
+Reste a collecter =
+MAX ( 0, [Cible echantillon] - [Entretiens exploitables] )
+
+// Cumul depuis le debut de la collecte, insensible au filtre de date courant.
+Entretiens cumules =
+CALCULATE (
+    [Entretiens exploitables],
+    FILTER ( ALLSELECTED ( dim_date ), dim_date[date] <= MAX ( dim_date[date] ) )
+)
+
+// Rythme observe sur les sept derniers jours de collecte.
+Rythme 7 jours =
+VAR DerniereDate = MAX ( dim_date[date] )
+RETURN
+    DIVIDE (
+        CALCULATE (
+            [Entretiens exploitables],
+            DATESINPERIOD ( dim_date[date], DerniereDate, -7, DAY )
+        ),
+        7
+    )
+
+// Date de fin projetee au rythme actuel : l'indicateur qui declenche
+// l'arbitrage « renforcer le terrain ou reduire la cible ».
+Fin projetee =
+VAR Rythme = [Rythme 7 jours]
+VAR Restant = [Reste a collecter]
+RETURN
+    IF (
+        Rythme > 0,
+        MAX ( dim_date[date] ) + DIVIDE ( Restant, Rythme ),
+        BLANK ()
+    )
+
+
+// =========================================================================
+// 3. Qualite
+// =========================================================================
+
+Score qualite moyen =
+AVERAGE ( fact_interview[quality_score] )
+
+Taux de rejet =
+DIVIDE ( [Entretiens rejetes], [Entretiens] )
+
+Entretiens signales =
+CALCULATE ( [Entretiens], fact_interview[quality_score] < 0.6 )
+
+Taux de signalement =
+DIVIDE ( [Entretiens signales], [Entretiens] )
+
+Duree moyenne (min) =
+AVERAGE ( fact_interview[duration_minutes] )
+
+// Ecart de duree de l'enqueteur a la mediane de son equipe sur le meme mode.
+// Un ecart fortement negatif et persistant est le signal de fraude le plus fiable.
+Ecart duree a l'equipe =
+VAR DureeEnqueteur = [Duree moyenne (min)]
+VAR MedianeEquipe =
+    CALCULATE (
+        MEDIANX ( VALUES ( dim_enumerator[enumerator_key] ), [Duree moyenne (min)] ),
+        ALL ( dim_enumerator )
+    )
+RETURN
+    DureeEnqueteur - MedianeEquipe
+
+Taux de corrections =
+AVERAGE ( fact_interview[correction_ratio] )
+
+
+// =========================================================================
+// 4. Productivite du reseau
+// =========================================================================
+
+Enqueteurs actifs =
+DISTINCTCOUNT ( fact_interview[enumerator_key] )
+
+Jours travailles =
+DISTINCTCOUNT ( fact_fieldwork_daily[date_key] )
+
+Entretiens par jour et par enqueteur =
+DIVIDE ( [Entretiens exploitables], [Jours travailles] * [Enqueteurs actifs] )
+
+Utilisation de la capacite =
+AVERAGE ( fact_fieldwork_daily[capacity_utilisation] )
+
+// Classement des enqueteurs sur le volume exploitable.
+Rang enqueteur =
+RANKX ( ALL ( dim_enumerator[matricule] ), [Entretiens exploitables], , DESC, DENSE )
+
+
+// =========================================================================
+// 5. Reponses et non-reponse
+// =========================================================================
+
+Reponses = COUNTROWS ( fact_answer )
+
+Reponses renseignees = SUM ( fact_answer[answered_count] )
+
+Taux de non-reponse item =
+DIVIDE ( SUM ( fact_answer[missing_count] ), [Reponses] )
+
+// Pourcentage pondere d'une modalite au sein de sa question : la mesure qui
+// alimente tous les tris a plat presentes aux commanditaires.
+Part ponderee =
+VAR PoidsModalite = SUM ( fact_answer[weighted_answered] )
+VAR PoidsQuestion =
+    CALCULATE (
+        SUM ( fact_answer[weighted_answered] ),
+        ALLEXCEPT ( fact_answer, dim_question[question_code], dim_survey[survey_key] )
+    )
+RETURN
+    DIVIDE ( PoidsModalite, PoidsQuestion )
+
+Part brute =
+VAR EffectifModalite = SUM ( fact_answer[answered_count] )
+VAR EffectifQuestion =
+    CALCULATE (
+        SUM ( fact_answer[answered_count] ),
+        ALLEXCEPT ( fact_answer, dim_question[question_code], dim_survey[survey_key] )
+    )
+RETURN
+    DIVIDE ( EffectifModalite, EffectifQuestion )
+
+// Moyenne ponderee d'une variable quantitative.
+Moyenne ponderee =
+DIVIDE ( SUM ( fact_answer[weighted_value] ), SUM ( fact_answer[sampling_weight] ) )
+
+
+// =========================================================================
+// 6. Quotas
+// =========================================================================
+
+Quota cible = SUM ( fact_quota[quota_target] )
+
+Quota realise = SUM ( fact_quota[quota_achieved] )
+
+Quota restant = SUM ( fact_quota[quota_remaining] )
+
+Taux de remplissage quota =
+DIVIDE ( [Quota realise], [Quota cible] )
+
+Quotas satures =
+CALCULATE ( COUNTROWS ( fact_quota ), fact_quota[is_full] = TRUE )
+
+
+// =========================================================================
+// 7. Indicateurs de mise en forme conditionnelle
+// =========================================================================
+
+// Feu tricolore d'avancement, compare a l'avancement theorique du calendrier.
+Statut avancement =
+VAR Realise = [Taux de realisation]
+VAR Theorique =
+    DIVIDE (
+        DATEDIFF ( MIN ( dim_survey[start_date] ), TODAY (), DAY ),
+        DATEDIFF ( MIN ( dim_survey[start_date] ), MIN ( dim_survey[end_date] ), DAY )
+    )
+RETURN
+    SWITCH (
+        TRUE (),
+        Realise >= Theorique, "Conforme",
+        Realise >= Theorique * 0.85, "A surveiller",
+        "En retard"
+    )
+
+Couleur statut avancement =
+SWITCH (
+    [Statut avancement],
+    "Conforme", "#2E7D32",
+    "A surveiller", "#B5501F",
+    "#C0392B"
+)

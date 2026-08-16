@@ -21,7 +21,6 @@ from apps.api.models import (
     InterviewStatus,
     Paradata,
     Question,
-    Questionnaire,
     QuestionType,
     Quota,
     Section,
@@ -277,8 +276,15 @@ def _check_constraints(question: Question, raw: Any, context: dict) -> None:
                     question.code, "Une modalite exclusive ne peut pas etre combinee."
                 )
 
+    number: float | None = None
     if q_type.is_numeric:
-        number = float(raw)
+        # La conversion a lieu ici et non dans _coerce : les bornes doivent
+        # etre verifiees sur une valeur numerique, et une saisie non numerique
+        # doit remonter comme un rejet fonctionnel, pas comme une erreur brute.
+        try:
+            number = float(raw)
+        except (TypeError, ValueError) as exc:
+            raise AnswerRejected(question.code, "Valeur numerique attendue.") from exc
         if question.min_value is not None and number < question.min_value:
             raise AnswerRejected(question.code, f"Valeur inferieure au minimum ({question.min_value}).")
         if question.max_value is not None and number > question.max_value:
@@ -286,7 +292,7 @@ def _check_constraints(question: Question, raw: Any, context: dict) -> None:
 
     if question.constraint_expr:
         local_context = dict(context)
-        local_context["value"] = float(raw) if q_type.is_numeric else raw
+        local_context["value"] = number if number is not None else raw
         try:
             ok = bool(evaluate(question.constraint_expr, local_context))
         except ExpressionError as exc:

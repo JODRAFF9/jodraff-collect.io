@@ -1,0 +1,294 @@
+%% Gabarit du rapport d'enquete.
+%% Les delimiteurs Jinja sont personnalises pour ne pas entrer en conflit avec
+%% la syntaxe LaTeX : voir reports/generate.py, fonction build_environment.
+%% Les sections sont annoncees par des commentaires LaTeX, conserves dans le
+%% document source produit pour en faciliter la relecture.
+\documentclass[11pt,a4paper]{article}
+
+\newcommand{\nomenquete}{\VAR{ enquete.titre | tex }}
+\newcommand{\codeenquete}{\VAR{ enquete.code | tex }}
+
+\input{preambule}
+
+\begin{document}
+
+%% ---------------------------------------------------------------- Couverture
+\begin{titlepage}
+\centering
+\vspace*{2.5cm}
+
+{\small\color{grisdoux}\MakeUppercase{\VAR{ enquete.organisation | tex }}}\\[2.2cm]
+
+{\Huge\bfseries\color{encre} \VAR{ enquete.titre | tex }}\\[0.9cm]
+{\Large\color{grisdoux} Rapport de collecte et premiers resultats}\\[2.5cm]
+
+\begin{tabular}{@{}ll@{}}
+\textbf{Code de l'enquete} & \VAR{ enquete.code | tex }\\
+\textbf{Periode de collecte} & \VAR{ enquete.periode | tex }\\
+\textbf{Services de collecte} & \VAR{ enquete.modes | tex }\\
+\textbf{Echantillon vise} & \num{\VAR{ enquete.cible }} unites\\
+\textbf{Entretiens exploitables} & \num{\VAR{ synthese.exploitables }}\\
+\textbf{Version du questionnaire} & \VAR{ enquete.version_questionnaire } (empreinte \texttt{\VAR{ enquete.empreinte_schema | tex }})\\
+\end{tabular}
+
+\vfill
+{\small\color{grisdoux} Rapport genere le \VAR{ meta.date_generation | tex }
+depuis la couche gold de l'entrepot.\\
+Toute reexecution sur les memes donnees produit un document identique.}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+%% ------------------------------------------------------------------ Synthese
+\section{Synthese}
+
+\noindent
+\indicateur{\VAR{ synthese.exploitables }}{entretiens exploitables}\hfill
+\indicateur{\VAR{ synthese.taux_realisation_pct }\,\%}{de la cible atteinte}\hfill
+\indicateur{\VAR{ synthese.duree_moyenne_min }\,min}{duree moyenne d'entretien}
+
+\vspace{1.6em}
+
+La collecte a mobilise \VAR{ synthese.enqueteurs } enqueteurs sur
+\VAR{ synthese.modes_utilises } mode(s) de collecte. Le taux de rejet au
+controle qualite s'etablit a \VAR{ synthese.taux_rejet_pct }\,\%, pour un score
+de qualite moyen de \VAR{ synthese.score_qualite }.
+
+\BLOCK{ if synthese.taux_realisation < 80 }
+\avertissement{La cible d'echantillon n'est pas atteinte
+(\VAR{ synthese.taux_realisation_pct }\,\%). Les resultats presentes ici sont
+provisoires et leur precision est inferieure a celle prevue au protocole.}
+\BLOCK{ endif }
+
+\subsection{Avancement par service de collecte}
+
+\begin{table}[h]
+\centering
+\caption{Realisation de la collecte selon le mode}
+\begin{tabular}{lrrrrr}
+\toprule
+\textbf{Mode} & \textbf{Entretiens} & \textbf{Exploitables} & \textbf{Valides}
+ & \textbf{Duree moy.} & \textbf{Qualite} \\
+\midrule
+\BLOCK{ for ligne in avancement }
+\VAR{ ligne.service | tex } & \num{\VAR{ ligne.total }} & \num{\VAR{ ligne.exploitables }}
+ & \num{\VAR{ ligne.valides }} & \VAR{ ligne.duree_min }\,min & \VAR{ ligne.qualite }\\
+\BLOCK{ endfor }
+\midrule
+\textbf{Ensemble} & \num{\VAR{ synthese.total }} & \num{\VAR{ synthese.exploitables }}
+ & \num{\VAR{ synthese.valides }} & \VAR{ synthese.duree_moyenne_min }\,min
+ & \VAR{ synthese.score_qualite }\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\BLOCK{ if courbe_collecte }
+\subsection{Rythme de la collecte}
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  width=0.92\textwidth, height=6.2cm,
+  xlabel={Jour de collecte}, ylabel={Entretiens cumules},
+  grid=major, grid style={gray!20},
+  legend pos=north west, legend style={draw=none, font=\small},
+  tick label style={font=\small}, label style={font=\small},
+]
+\addplot[thick, color=accent, mark=*, mark size=1.1pt] coordinates {
+\BLOCK{ for point in courbe_collecte }(\VAR{ point.jour }, \VAR{ point.cumul }) \BLOCK{ endfor }
+};
+\addlegendentry{Realise}
+\addplot[dashed, color=grisdoux, thick] coordinates {
+  (0, 0) (\VAR{ courbe_collecte[-1].jour }, \VAR{ enquete.cible })
+};
+\addlegendentry{Trajectoire cible}
+\end{axis}
+\end{tikzpicture}
+\caption{Progression cumulee des entretiens exploitables}
+\end{figure}
+\BLOCK{ endif }
+
+\newpage
+%% -------------------------------------------------------------- Methodologie
+\section{Methodologie}
+
+\subsection{Dispositif de collecte}
+
+\BLOCK{ for mode in modes_detail }
+\paragraph{\VAR{ mode.nom | tex }.}
+\VAR{ mode.description | tex }
+La duree d'entretien de reference est de \VAR{ mode.duree } minutes pour un taux
+de reponse usuel de \VAR{ mode.taux_reponse_pct }\,\%.
+\BLOCK{ endfor }
+
+\subsection{Ponderation}
+
+Les resultats sont presentes en effectifs bruts et en pourcentages ponderes.
+La ponderation applique le poids de sondage porte par chaque unite de
+l'echantillon, ce qui corrige les probabilites d'inclusion inegales. Les
+pourcentages ponderes sont les estimateurs a retenir pour toute inference sur
+la population.
+
+\subsection{Controle qualite}
+
+Chaque entretien recoit un score de qualite fonde sur sa duree rapportee a la
+duree de reference du mode, la presence de la position GPS lorsque le mode
+l'exige, le taux de remplissage, le nombre de corrections en cours de saisie et
+l'uniformite des reponses a echelle. Les entretiens dont le score est inferieur
+a 0,6 sont soumis au controle du superviseur.
+
+\BLOCK{ if qualite_alertes }
+\begin{table}[h]
+\centering
+\caption{Enqueteurs dont le score de qualite moyen est le plus faible}
+\begin{tabular}{llrrr}
+\toprule
+\textbf{Matricule} & \textbf{Mode} & \textbf{Entretiens} & \textbf{Score moyen}
+ & \textbf{Signales} \\
+\midrule
+\BLOCK{ for ligne in qualite_alertes }
+\VAR{ ligne.matricule | tex } & \VAR{ ligne.service | tex } & \num{\VAR{ ligne.entretiens }}
+ & \VAR{ ligne.score } & \num{\VAR{ ligne.signales }}\\
+\BLOCK{ endfor }
+\bottomrule
+\end{tabular}
+\end{table}
+\BLOCK{ endif }
+
+\newpage
+%% ------------------------------------------------------------------ Resultats
+\section{Resultats}
+
+\subsection{Variables qualitatives}
+
+\BLOCK{ for tableau in tris_a_plat }
+\begin{table}[h]
+\centering
+\caption{\VAR{ tableau.libelle | tex }}
+\begin{tabular}{lrrr}
+\toprule
+\textbf{Modalite} & \textbf{Effectif} & \textbf{\% brut} & \textbf{\% pondere} \\
+\midrule
+\BLOCK{ for ligne in tableau.lignes }
+\VAR{ ligne.modalite | tex } & \num{\VAR{ ligne.effectif }} & \VAR{ ligne.pct_brut }
+ & \VAR{ ligne.pct_pondere }\\
+\BLOCK{ endfor }
+\midrule
+\textbf{Total} & \num{\VAR{ tableau.total }} & 100,0 & 100,0\\
+\bottomrule
+\end{tabular}
+\end{table}
+\BLOCK{ endfor }
+
+\subsection{Variables quantitatives}
+
+\begin{longtable}{lrrrrr}
+\caption{Statistiques descriptives des variables quantitatives}\\
+\toprule
+\textbf{Variable} & \textbf{N} & \textbf{Moyenne} & \textbf{Moy. ponderee}
+ & \textbf{Mediane} & \textbf{IC 95\,\%} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Variable} & \textbf{N} & \textbf{Moyenne} & \textbf{Moy. ponderee}
+ & \textbf{Mediane} & \textbf{IC 95\,\%} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\BLOCK{ for ligne in stats_numeriques }
+\VAR{ ligne.libelle | tex } & \num{\VAR{ ligne.n }} & \VAR{ ligne.moyenne }
+ & \VAR{ ligne.moyenne_ponderee } & \VAR{ ligne.mediane }
+ & $\pm$\,\VAR{ ligne.ic95 }\\
+\BLOCK{ endfor }
+\end{longtable}
+
+\BLOCK{ if effet_mode }
+\subsection{Effet de mode}
+
+L'enquete etant multimode, les ecarts observes entre canaux de collecte doivent
+etre examines avant toute interpretation : ils peuvent traduire une difference
+reelle de population autant qu'un effet du mode d'administration.
+
+\begin{table}[h]
+\centering
+\caption{Modalites presentant les ecarts les plus marques entre modes
+(points de pourcentage ponderes)}
+\begin{tabular}{llrr}
+\toprule
+\textbf{Variable} & \textbf{Modalite} & \textbf{Ecart} & \textbf{Modes compares} \\
+\midrule
+\BLOCK{ for ligne in effet_mode }
+\VAR{ ligne.libelle | tex } & \VAR{ ligne.modalite | tex } & \VAR{ ligne.ecart }
+ & \num{\VAR{ ligne.modes }}\\
+\BLOCK{ endfor }
+\bottomrule
+\end{tabular}
+\end{table}
+
+\BLOCK{ if effet_mode_max > 10 }
+\avertissement{Un ecart de \VAR{ effet_mode_max } points est observe entre modes
+sur au moins une modalite. Une analyse de l'effet de mode est necessaire avant
+de publier des resultats agreges tous modes confondus.}
+\BLOCK{ endif }
+\BLOCK{ endif }
+
+\newpage
+%% ------------------------------------------------------------------- Annexes
+\section{Annexes}
+
+\subsection{Rendement du reseau d'enqueteurs}
+
+\begin{longtable}{llrrrr}
+\caption{Productivite par enqueteur}\\
+\toprule
+\textbf{Matricule} & \textbf{Mode} & \textbf{Jours} & \textbf{Exploitables}
+ & \textbf{Par jour} & \textbf{Taux de succes} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Matricule} & \textbf{Mode} & \textbf{Jours} & \textbf{Exploitables}
+ & \textbf{Par jour} & \textbf{Taux de succes} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\BLOCK{ for ligne in rendement }
+\VAR{ ligne.matricule | tex } & \VAR{ ligne.service | tex } & \num{\VAR{ ligne.jours }}
+ & \num{\VAR{ ligne.exploitables }} & \VAR{ ligne.par_jour }
+ & \VAR{ ligne.taux_succes }\,\%\\
+\BLOCK{ endfor }
+\end{longtable}
+
+\subsection{Dictionnaire des variables}
+
+\begin{longtable}{llll}
+\caption{Variables du questionnaire}\\
+\toprule
+\textbf{Code} & \textbf{Libelle} & \textbf{Type} & \textbf{Role} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Code} & \textbf{Libelle} & \textbf{Type} & \textbf{Role} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\BLOCK{ for variable in dictionnaire }
+\texttt{\VAR{ variable.code | tex }} & \VAR{ variable.libelle | tex }
+ & \VAR{ variable.type | tex } & \VAR{ variable.role | tex }\\
+\BLOCK{ endfor }
+\end{longtable}
+
+\subsection{Tracabilite}
+
+\begin{tabular}{@{}ll@{}}
+\textbf{Empreinte du questionnaire} & \texttt{\VAR{ enquete.empreinte_schema | tex }}\\
+\textbf{Couche de donnees} & gold (schema en etoile)\\
+\textbf{Controles qualite} & \VAR{ meta.controles_reussis } / \VAR{ meta.controles_total } reussis\\
+\textbf{Genere le} & \VAR{ meta.date_generation | tex }\\
+\end{tabular}
+
+\end{document}

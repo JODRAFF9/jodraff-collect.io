@@ -6,6 +6,7 @@ import hashlib
 import json
 from typing import Any
 
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from apps.api.models import (
@@ -159,7 +160,9 @@ def from_schema(session: Session, questionnaire: Questionnaire, schema: dict) ->
             questionnaire_id=questionnaire.id,
             code=raw_section["code"],
             label=_as_label(raw_section.get("label")),
-            description=_as_label(raw_section.get("description")) if raw_section.get("description") else {},
+            description=(
+                _as_label(raw_section.get("description")) if raw_section.get("description") else {}
+            ),
             order_index=raw_section.get("order", s_index),
             is_repeatable=raw_section.get("is_repeatable", False),
             repeat_count_question=raw_section.get("repeat_count_question"),
@@ -227,7 +230,11 @@ def validate(questionnaire: Questionnaire, survey: Survey) -> list[ValidationIss
 
     questions = list(questionnaire.iter_questions())
     if not questions:
-        issues.append(ValidationIssue("error", "questionnaire", "Le questionnaire ne contient aucune question."))
+        issues.append(
+            ValidationIssue(
+                "error", "questionnaire", "Le questionnaire ne contient aucune question."
+            )
+        )
         return issues
 
     codes: list[str] = []
@@ -300,21 +307,33 @@ def validate(questionnaire: Questionnaire, survey: Survey) -> list[ValidationIss
         # Coherence type / parametres
         if q_type.is_choice and not question.choice_list_id:
             issues.append(ValidationIssue("error", location, "Question a modalites sans liste de choix."))
-        if question.choice_list_id and question.choice_list and question.choice_list.code not in list_codes:
+        if (
+            question.choice_list_id
+            and question.choice_list
+            and question.choice_list.code not in list_codes
+        ):
             issues.append(ValidationIssue("error", location, "Liste de choix introuvable."))
         if question.choice_list is not None and not question.choice_list.choices:
             issues.append(ValidationIssue("error", location, "La liste de choix est vide."))
         if q_type == QuestionType.CALCULATE and not question.calculation:
-            issues.append(ValidationIssue("error", location, "Question calculee sans formule."))
+            issues.append(
+                ValidationIssue("error", location, "Question calculee sans formule.")
+            )
         if (
             question.min_value is not None
             and question.max_value is not None
             and question.min_value > question.max_value
         ):
-            issues.append(ValidationIssue("error", location, "Borne minimale superieure a la borne maximale."))
+            issues.append(
+                ValidationIssue(
+                    "error", location, "Borne minimale superieure a la borne maximale."
+                )
+            )
         if q_type == QuestionType.CALCULATE and question.is_required:
             issues.append(
-                ValidationIssue("warning", location, "Une question calculee n'a pas besoin d'etre obligatoire.")
+                ValidationIssue(
+                    "warning", location, "Une question calculee n'a pas besoin d'etre obligatoire."
+                )
             )
 
         # Expressions : validite syntaxique et references
@@ -397,12 +416,22 @@ def publish(session: Session, questionnaire: Questionnaire, user_id: str | None 
     questionnaire.published_by = user_id
     questionnaire.schema_hash = schema_hash(schema)
 
-    # Les versions anterieures publiees passent en archive.
-    for other in survey.questionnaires:
-        if other.id != questionnaire.id and other.status == QuestionnaireStatus.PUBLISHED.value:
-            other.status = QuestionnaireStatus.ARCHIVED.value
+    # Les versions anterieures publiees passent en archive. La recherche se
+    # fait en base plutot que sur la collection de l'enquete : celle-ci peut
+    # etre perimee lorsqu'un questionnaire a ete cree par cle etrangere.
+    previous = session.scalars(
+        select(Questionnaire).where(
+            Questionnaire.survey_id == survey.id,
+            Questionnaire.id != questionnaire.id,
+            Questionnaire.status == QuestionnaireStatus.PUBLISHED.value,
+        )
+    ).all()
+    for other in previous:
+        other.status = QuestionnaireStatus.ARCHIVED.value
 
     session.flush()
+    # L'enquete doit refleter la nouvelle version publiee des le prochain acces.
+    session.expire(survey, ["questionnaires"])
     return {
         "questionnaire_id": questionnaire.id,
         "version": questionnaire.version,
@@ -414,7 +443,14 @@ def publish(session: Session, questionnaire: Questionnaire, user_id: str | None 
 def new_version(session: Session, questionnaire: Questionnaire) -> Questionnaire:
     """Cree un brouillon a partir d'une version existante."""
     survey = questionnaire.survey
-    next_version = max((q.version for q in survey.questionnaires), default=0) + 1
+    # Le numero de version est determine en base : deux brouillons crees dans
+    # la meme session ne doivent pas se voir attribuer le meme numero.
+    next_version = (
+        session.scalar(
+            select(func.max(Questionnaire.version)).where(Questionnaire.survey_id == survey.id)
+        )
+        or 0
+    ) + 1
     draft = Questionnaire(
         survey_id=survey.id,
         version=next_version,
@@ -425,4 +461,5 @@ def new_version(session: Session, questionnaire: Questionnaire) -> Questionnaire
     session.add(draft)
     session.flush()
     from_schema(session, draft, to_schema(questionnaire))
+    session.expire(survey, ["questionnaires"])
     return draft

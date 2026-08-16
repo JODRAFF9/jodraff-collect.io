@@ -473,7 +473,11 @@ def seed(reset: bool = False) -> dict:
                 answers["photo_habitation"] = {"uri": f"blob://photos/{interview.id}.jpg"}
             if RNG.random() < 0.25:
                 answers["observations"] = RNG.choice(
-                    ["Menage cooperatif.", "Entretien interrompu puis repris.", "Adresse difficile a localiser."]
+                    [
+                        "Menage cooperatif.",
+                        "Entretien interrompu puis repris.",
+                        "Adresse difficile a localiser.",
+                    ]
                 )
 
             for code, value in answers.items():

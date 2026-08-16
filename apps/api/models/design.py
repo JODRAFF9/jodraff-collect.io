@@ -48,15 +48,15 @@ class Survey(Base, IdMixin, TimestampMixin):
     languages: Mapped[list] = mapped_column(default=lambda: ["fr"], nullable=False)
     created_by: Mapped[str | None] = mapped_column(ForeignKey("users.id"))
 
-    questionnaires: Mapped[list["Questionnaire"]] = relationship(
+    questionnaires: Mapped[list[Questionnaire]] = relationship(
         back_populates="survey", cascade="all, delete-orphan", order_by="Questionnaire.version"
     )
-    quotas: Mapped[list["Quota"]] = relationship(
+    quotas: Mapped[list[Quota]] = relationship(
         back_populates="survey", cascade="all, delete-orphan"
     )
 
     @property
-    def published_questionnaire(self) -> "Questionnaire | None":
+    def published_questionnaire(self) -> Questionnaire | None:
         published = [
             q for q in self.questionnaires if q.status == QuestionnaireStatus.PUBLISHED.value
         ]
@@ -86,12 +86,12 @@ class Questionnaire(Base, IdMixin, TimestampMixin):
     settings: Mapped[dict] = mapped_column(default=dict)
 
     survey: Mapped[Survey] = relationship(back_populates="questionnaires")
-    sections: Mapped[list["Section"]] = relationship(
+    sections: Mapped[list[Section]] = relationship(
         back_populates="questionnaire",
         cascade="all, delete-orphan",
         order_by="Section.order_index",
     )
-    choice_lists: Mapped[list["ChoiceList"]] = relationship(
+    choice_lists: Mapped[list[ChoiceList]] = relationship(
         back_populates="questionnaire", cascade="all, delete-orphan"
     )
 
@@ -122,7 +122,7 @@ class Section(Base, IdMixin, TimestampMixin):
     relevance: Mapped[str | None] = mapped_column(String(500))  # condition d'affichage
 
     questionnaire: Mapped[Questionnaire] = relationship(back_populates="sections")
-    questions: Mapped[list["Question"]] = relationship(
+    questions: Mapped[list[Question]] = relationship(
         back_populates="section", cascade="all, delete-orphan", order_by="Question.order_index"
     )
 
@@ -140,7 +140,7 @@ class ChoiceList(Base, IdMixin, TimestampMixin):
     name: Mapped[str] = mapped_column(String(200), nullable=False)
 
     questionnaire: Mapped[Questionnaire] = relationship(back_populates="choice_lists")
-    choices: Mapped[list["Choice"]] = relationship(
+    choices: Mapped[list[Choice]] = relationship(
         back_populates="choice_list", cascade="all, delete-orphan", order_by="Choice.order_index"
     )
 

@@ -18,7 +18,7 @@ class Organization(Base, IdMixin, TimestampMixin):
     country: Mapped[str | None] = mapped_column(String(2))
     timezone: Mapped[str] = mapped_column(String(64), default="UTC")
 
-    users: Mapped[list["User"]] = relationship(back_populates="organization")
+    users: Mapped[list[User]] = relationship(back_populates="organization")
 
 
 class User(Base, IdMixin, TimestampMixin):
@@ -38,7 +38,7 @@ class User(Base, IdMixin, TimestampMixin):
     organization: Mapped[Organization] = relationship(back_populates="users")
     # ``foreign_keys`` est obligatoire : EnumeratorProfile reference users deux
     # fois (l'enqueteur lui-meme et son superviseur).
-    enumerator_profile: Mapped["EnumeratorProfile | None"] = relationship(
+    enumerator_profile: Mapped[EnumeratorProfile | None] = relationship(
         back_populates="user",
         uselist=False,
         cascade="all, delete-orphan",
@@ -69,7 +69,7 @@ class EnumeratorProfile(Base, IdMixin, TimestampMixin):
     notes: Mapped[str | None] = mapped_column(String(1000))
 
     user: Mapped[User] = relationship(back_populates="enumerator_profile", foreign_keys=[user_id])
-    supervisor: Mapped["User | None"] = relationship(foreign_keys=[supervisor_id])
+    supervisor: Mapped[User | None] = relationship(foreign_keys=[supervisor_id])
 
 
 class AuditLog(Base, IdMixin):

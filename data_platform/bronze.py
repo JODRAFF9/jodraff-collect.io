@@ -26,7 +26,6 @@ from sqlalchemy import text
 from data_platform.contracts import CONTRACTS, LoadStrategy, TableContract
 from platform_core.config import settings
 
-
 # Marqueur de valeur manquante dans le fichier CSV de transit. Il doit se
 # distinguer d'une chaine vide, qui est une valeur legitime en base.
 _NULL_SENTINEL = "\\N"
@@ -177,7 +176,9 @@ def extract_table(
     )
 
 
-def ingest_all(engine, *, full_refresh: bool = False, ingest_date: date | None = None) -> list[IngestionResult]:
+def ingest_all(
+    engine, *, full_refresh: bool = False, ingest_date: date | None = None
+) -> list[IngestionResult]:
     """Execute l'extraction complete de la couche bronze."""
     ingest_date = ingest_date or date.today()
     batch_id = f"bronze_{datetime.now(UTC):%Y%m%dT%H%M%S}"

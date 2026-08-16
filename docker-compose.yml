@@ -1,0 +1,49 @@
+# Environnement de developpement complet.
+# La production s'appuie sur l'infrastructure Azure decrite dans infra/terraform.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: jodraff-postgres
+    environment:
+      POSTGRES_USER: jodraff
+      POSTGRES_PASSWORD: jodraff
+      POSTGRES_DB: collect
+      # Collation francaise : l'ordre des libelles de modalites en depend.
+      POSTGRES_INITDB_ARGS: "--locale=fr_FR.UTF-8 --encoding=UTF8"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jodraff -d collect"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile
+    container_name: jodraff-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ENVIRONMENT: dev
+      DATABASE_URL: postgresql+psycopg://jodraff:jodraff@postgres:5432/collect
+      LAKE_ROOT: /data/lake
+      WAREHOUSE_URL: /data/warehouse.duckdb
+      REPORTS_OUTPUT_DIR: /data/reports
+      SECRET_KEY: cle-de-developpement-uniquement
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./:/app
+      - lake_data:/data
+    command: >
+      uvicorn apps.api.main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  postgres_data:
+  lake_data:

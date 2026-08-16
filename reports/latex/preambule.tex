@@ -1,0 +1,73 @@
+% Preambule commun aux rapports d'enquete.
+% Isole des gabarits pour qu'une charte graphique puisse etre modifiee sans
+% toucher au contenu des rapports.
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{lmodern}
+\usepackage[a4paper,margin=2.4cm,headheight=15pt]{geometry}
+
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{siunitx}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{caption}
+\usepackage{pgfplots}
+\usepackage[hidelinks]{hyperref}
+
+\pgfplotsset{compat=1.18}
+
+% --- Charte graphique -----------------------------------------------------
+\definecolor{accent}{HTML}{B5501F}
+\definecolor{encre}{HTML}{1F1E1C}
+\definecolor{grisdoux}{HTML}{6B6862}
+\definecolor{fondtableau}{HTML}{F7F5F2}
+
+\sisetup{
+  output-decimal-marker = {,},
+  group-separator = {\,},
+  group-minimum-digits = 4,
+  detect-weight = true
+}
+
+% --- Titres ---------------------------------------------------------------
+\titleformat{\section}{\Large\bfseries\color{accent}}{\thesection}{1em}{}
+\titleformat{\subsection}{\large\bfseries\color{encre}}{\thesubsection}{1em}{}
+\titlespacing*{\section}{0pt}{2.2em}{1em}
+
+% --- En-tetes et pieds de page -------------------------------------------
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{grisdoux}\nomenquete}
+\fancyhead[R]{\small\color{grisdoux}\codeenquete}
+\fancyfoot[C]{\small\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\captionsetup{font=small, labelfont={bf,color=accent}}
+\setlength{\tabcolsep}{7pt}
+\renewcommand{\arraystretch}{1.25}
+
+% --- Blocs reutilisables --------------------------------------------------
+% Encadre d'avertissement methodologique.
+\newcommand{\avertissement}[1]{%
+  \begin{center}
+  \fcolorbox{accent}{fondtableau}{%
+    \begin{minipage}{0.94\textwidth}
+      \small\textbf{\color{accent}Avertissement.} #1
+    \end{minipage}}
+  \end{center}
+}
+
+% Indicateur cle mis en avant dans le corps du texte.
+\newcommand{\indicateur}[2]{%
+  \begin{minipage}[t]{0.31\textwidth}
+    \centering
+    {\Huge\bfseries\color{accent} #1}\\[0.3em]
+    {\small\color{grisdoux} #2}
+  \end{minipage}%
+}

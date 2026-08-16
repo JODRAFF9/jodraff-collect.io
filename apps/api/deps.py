@@ -64,5 +64,7 @@ def get_survey(
     if survey is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Enquete introuvable.")
     if survey.org_id != user.org_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Enquete hors de votre organisation.")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Enquete hors de votre organisation."
+        )
     return survey
