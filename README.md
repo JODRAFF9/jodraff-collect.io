@@ -50,15 +50,44 @@ Prérequis : **Python 3.11 ou plus**. Rien d'autre pour les quatre premières
 étapes — la base et l'entrepôt sont des fichiers locaux. Seul le rapport PDF
 demande un moteur LaTeX (étape 4).
 
+> **Windows** : `make`, `source` et `&&` n'existent pas dans PowerShell. Chaque
+> commande `make` de ce guide a son équivalent direct, rappelé dans le tableau
+> [« Sans make »](#sans-make-windows-ou-machine-sans-make) plus bas.
+
 ### 1. Installer
+
+**Linux et macOS**
 
 ```bash
 git clone https://github.com/JODRAFF9/jodraff-collect
 cd jodraff-collect
 
-python -m venv .venv && source .venv/bin/activate   # Windows : .venv\Scripts\activate
-make install          # ou : pip install -e ".[dev]"
+python -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
 ```
+
+**Windows (PowerShell)**
+
+```powershell
+git clone https://github.com/JODRAFF9/jodraff-collect
+cd jodraff-collect
+
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -e ".[dev]"
+```
+
+Si PowerShell refuse d'exécuter le script d'activation, autorisez-le pour la
+session en cours seulement :
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+```
+
+L'invite doit ensuite afficher `(.venv)` en tête de ligne. Sans cela, les
+paquets s'installent dans le Python global, ce qui fonctionne mais mélange les
+projets.
 
 ### 2. Créer des données et alimenter l'entrepôt
 
@@ -109,7 +138,7 @@ compile quelque chose** et demande donc un moteur LaTeX ; sans lui, seul le
 ### 5. Vérifier
 
 ```bash
-make test             # 152 tests
+make test             # 159 tests
 make lint             # contrôle de style
 ```
 
@@ -123,6 +152,30 @@ make clean            # supprimer lac, entrepôt et rapports
 make reset            # tout remettre à zéro, base comprise
 make help             # liste complète
 ```
+
+### Sans make (Windows, ou machine sans make)
+
+`make` n'est qu'un raccourci. Ces commandes fonctionnent partout, y compris
+dans PowerShell :
+
+| Au lieu de | Lancer |
+|---|---|
+| `make install` | `pip install -e ".[dev]"` |
+| `make demo` | `python -m scripts.seed_demo --reset` puis `python -m data_platform.runner run` |
+| `make serve` | `python -m uvicorn apps.api.main:app --reload` |
+| `make pipeline` | `python -m data_platform.runner run` |
+| `make transform` | `python -m data_platform.runner transform` |
+| `make quality` | `python -m data_platform.runner quality` |
+| `make report` | `python -m reports.generate --survey-code ECVM2026` |
+| `make test` | `python -m pytest -q` |
+| `make lint` | `python -m ruff check .` |
+
+Toutes se lancent depuis la **racine du dépôt**, celle qui contient
+`pyproject.toml`.
+
+> Ne lancez pas `python apps/api/main.py` : ce fichier déclare l'application
+> mais ne démarre aucun serveur, et l'exécuter directement casse les imports du
+> projet. Le serveur se lance par `uvicorn`, comme ci-dessus.
 
 ### Avec Docker
 
@@ -395,7 +448,7 @@ exigence de sécurité, couverte par des tests dédiés.
 make test
 ```
 
-152 tests couvrant le catalogue, l'évaluateur d'expressions (dont les tentatives
+159 tests couvrant le catalogue, l'évaluateur d'expressions (dont les tentatives
 d'évasion), la validation des questionnaires, le moteur de collecte, la gestion
 du terrain, et un test de bout en bout qui suit une donnée du terrain jusqu'au
 rapport en vérifiant qu'aucune donnée personnelle ne fuit en chemin.

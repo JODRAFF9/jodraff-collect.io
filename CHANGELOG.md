@@ -67,7 +67,7 @@ choix du service de collecte jusqu'au rapport PDF.
 
 ### Tests
 
-- 152 tests, dont un test de bout en bout suivant une donnée du terrain
+- 159 tests, dont un test de bout en bout suivant une donnée du terrain
   jusqu'au rapport diffusé et vérifiant qu'aucune donnée personnelle ne fuit.
 
 ### Performances
