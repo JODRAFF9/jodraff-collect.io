@@ -5,6 +5,7 @@ conception du questionnaire → réalisation de l'enquête → gestion des enqu�
 → centralisation SQL → traitement et restitution Power Platform → rapport
 LaTeX**.
 
+
 L'architecture de données suit le modèle *medallion* (bronze / silver / gold)
 et se déploie sur Azure, tout en restant intégralement exécutable en local.
 
