@@ -1,0 +1,48 @@
+{
+  // L'interpreteur n'est pas fige ici : le chemin differe entre Windows
+  // (.venv\Scripts\python.exe) et Linux ou macOS (.venv/bin/python).
+  // L'extension Python detecte automatiquement le .venv place a la racine ;
+  // au besoin, « Python: Select Interpreter » permet de le choisir.
+  "python.terminal.activateEnvironment": true,
+
+  "python.testing.pytestEnabled": true,
+  "python.testing.unittestEnabled": false,
+  "python.testing.pytestArgs": ["tests"],
+
+  "python.analysis.extraPaths": ["."],
+  "python.analysis.typeCheckingMode": "basic",
+
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit"
+    },
+    "editor.rulers": [110]
+  },
+
+  "[sql]": {
+    "editor.tabSize": 4
+  },
+
+  // Le gabarit LaTeX est un fichier Jinja : la coloration LaTeX reste la plus
+  // lisible malgre les delimiteurs \VAR et \BLOCK.
+  "files.associations": {
+    "*.tex.j2": "latex"
+  },
+
+  // Artefacts d'execution : ils encombrent l'explorateur et la recherche.
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/.pytest_cache": true,
+    "**/.ruff_cache": true,
+    "**/*.egg-info": true
+  },
+  "search.exclude": {
+    "var/**": true,
+    ".venv/**": true
+  },
+
+  "latex-workshop.latex.outDir": "%DIR%",
+  "latex-workshop.latex.autoBuild.run": "never"
+}

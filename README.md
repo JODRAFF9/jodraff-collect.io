@@ -177,6 +177,46 @@ Toutes se lancent depuis la **racine du dépôt**, celle qui contient
 > mais ne démarre aucun serveur, et l'exécuter directement casse les imports du
 > projet. Le serveur se lance par `uvicorn`, comme ci-dessus.
 
+### Avec VS Code
+
+Le dépôt fournit sa configuration dans `.vscode/` : rien à régler.
+
+**Première ouverture**
+
+1. Ouvrir le dossier du dépôt (*Fichier → Ouvrir le dossier*), pas un fichier
+   isolé — sinon les imports du projet ne se résolvent pas.
+2. Accepter les extensions recommandées lorsque VS Code les propose.
+3. `Ctrl+Maj+P` → **Python: Select Interpreter** → choisir celui de `.venv`.
+   C'est l'étape qui conditionne tout le reste.
+
+**Lancer**
+
+`Ctrl+Maj+P` → **Tasks: Run Task**, puis :
+
+| Tâche | Effet |
+|---|---|
+| Installer les dependances | `pip install -e ".[dev]"` |
+| Demarrage complet | Données de test puis alimentation de l'entrepôt |
+| API : serveur de developpement | Serveur avec rechargement automatique |
+| Pipeline medallion | bronze → silver → gold → contrôles → export |
+| Rapport LaTeX | Produit le PDF |
+| Tests | Suite complète |
+
+**Déboguer**
+
+Onglet *Exécuter et déboguer* (`Ctrl+Maj+D`) : six configurations, dont
+**API (deboguer)** pour poser des points d'arrêt dans les routes.
+
+Cette configuration démarre le serveur **sans** rechargement automatique, à
+dessein : le rechargement relance le serveur dans un sous-processus où les
+points d'arrêt ne sont plus atteints. Pour développer avec rechargement sans
+déboguer, utiliser la tâche *API : serveur de developpement*.
+
+**Tests**
+
+L'explorateur de tests (icône éprouvette) découvre les 159 tests
+automatiquement et permet de les lancer un par un, avec débogage.
+
 ### Avec Docker
 
 Pour travailler sur PostgreSQL plutôt que SQLite :

@@ -1,0 +1,65 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      // Sans --reload : le rechargement automatique relance le serveur dans un
+      // sous-processus, ou les points d'arret ne sont plus atteints. Pour
+      // developper avec rechargement sans deboguer, utiliser la tache
+      // « API : serveur de developpement » (Terminal > Executer la tache).
+      "name": "API (deboguer)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": ["apps.api.main:app", "--host", "127.0.0.1", "--port", "8000"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": false
+    },
+    {
+      "name": "Jeu de demonstration",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "scripts.seed_demo",
+      "args": ["--reset"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Pipeline medallion",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "data_platform.runner",
+      "args": ["run"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Controles qualite",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "data_platform.runner",
+      "args": ["quality"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Rapport LaTeX",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "reports.generate",
+      "args": ["--survey-code", "ECVM2026"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Fichier de test courant",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": ["${file}", "-v"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": false
+    }
+  ]
+}

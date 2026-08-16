@@ -1,0 +1,13 @@
+{
+  "recommendations": [
+    // Interpreteur, tests et debogage Python.
+    "ms-python.python",
+    "ms-python.debugpy",
+    // Controle de style et formatage, alignes sur la configuration du projet.
+    "charliermarsh.ruff",
+    // Compilation et apercu des rapports LaTeX.
+    "James-Yu.latex-workshop",
+    // Interrogation directe des fichiers Parquet des couches du lakehouse.
+    "RandomFractalsInc.duckdb-sql-tools"
+  ]
+}

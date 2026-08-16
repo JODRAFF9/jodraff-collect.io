@@ -1,0 +1,102 @@
+{
+  "version": "2.0.0",
+  // Toutes les taches passent par l'interpreteur selectionne dans VS Code,
+  // ce qui les rend identiques sous Windows, macOS et Linux, et evite de
+  // dependre de make, absent de Windows.
+  "tasks": [
+    {
+      "label": "Installer les dependances",
+      "type": "process",
+      "command": "${command:python.interpreterPath}",
+      "args": ["-m", "pip", "install", "-e", ".[dev]"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Jeu de demonstration",
+      "detail": "Recree les donnees de test dans la base operationnelle",
+      "type": "process",
+      "command": "${command:python.interpreterPath}",
+      "args": ["-m", "scripts.seed_demo", "--reset"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Demarrage complet",
+      "detail": "Donnees de test puis alimentation de l'entrepot",
+      "type": "process",
+      "command": "${command:python.interpreterPath}",
+      "args": ["-m", "data_platform.runner", "run"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "dependsOrder": "sequence",
+      "dependsOn": ["Jeu de demonstration"],
+      "problemMatcher": [],
+      "group": { "kind": "build", "isDefault": true }
+    },
+    {
+      "label": "Pipeline medallion",
+      "detail": "bronze -> silver -> gold -> controles -> export",
+      "type": "process",
+      "command": "${command:python.interpreterPath}",
+      "args": ["-m", "data_platform.runner", "run"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": [],
+      "group": "build"
+    },
+    {
+      "label": "API : serveur de developpement",
+      "detail": "Rechargement automatique. Ouvrir http://localhost:8000",
+      "type": "process",
+      "command": "${command:python.interpreterPath}",
+      "args": [
+        "-m",
+        "uvicorn",
+        "apps.api.main:app",
+        "--reload",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8000"
+      ],
+      "options": { "cwd": "${workspaceFolder}" },
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": { "panel": "dedicated" }
+    },
+    {
+      "label": "Rapport LaTeX",
+      "detail": "Produit var/reports/ECVM2026/rapport_ecvm2026.pdf",
+      "type": "process",
+      "command": "${command:python.interpreterPath}",
+      "args": ["-m", "reports.generate", "--survey-code", "ECVM2026"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Rapport LaTeX (source seule)",
+      "detail": "Produit le .tex sans compiler : aucun moteur LaTeX requis",
+      "type": "process",
+      "command": "${command:python.interpreterPath}",
+      "args": ["-m", "reports.generate", "--survey-code", "ECVM2026", "--no-pdf"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Tests",
+      "type": "process",
+      "command": "${command:python.interpreterPath}",
+      "args": ["-m", "pytest", "-q"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": [],
+      "group": { "kind": "test", "isDefault": true }
+    },
+    {
+      "label": "Controle de style",
+      "type": "process",
+      "command": "${command:python.interpreterPath}",
+      "args": ["-m", "ruff", "check", "."],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    }
+  ]
+}
