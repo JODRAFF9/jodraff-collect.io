@@ -144,19 +144,23 @@ class TestAffectation:
 
 class TestTransfert:
     def test_transfert_conserve_la_trace(self, session, org, survey, users):
-        premier = _creer_enqueteur(session, org, "ENQ300", "Dakar", ["CAPI"])
-        second = _creer_enqueteur(session, org, "ENQ301", "Dakar", ["CAPI"])
+        _creer_enqueteur(session, org, "ENQ300", "Dakar", ["CAPI"])
+        destinataire = _creer_enqueteur(session, org, "ENQ301", "Dakar", ["CAPI"])
         _charger_echantillon(session, survey, {"Dakar": 1})
         fw.auto_assign(session, survey, "CAPI")
 
         affectation = session.query(Assignment).filter(
             Assignment.status == AssignmentStatus.ASSIGNED.value
         ).first()
-        fw.reassign(session, affectation.id, second.id, "Enqueteur indisponible")
+        # L'equilibrage decide seul du premier attributaire : la trace doit
+        # nommer celui qui detenait reellement l'affectation, quel qu'il soit.
+        precedent = affectation.enumerator_id
 
-        assert affectation.enumerator_id == second.id
+        fw.reassign(session, affectation.id, destinataire.id, "Enqueteur indisponible")
+
+        assert affectation.enumerator_id == destinataire.id
         assert "indisponible" in affectation.notes
-        assert premier.id in affectation.notes or "non affecte" in affectation.notes
+        assert (precedent or "non affecte") in affectation.notes
 
     def test_transfert_d_une_affectation_terminee_refuse(self, session, org, survey, users):
         _charger_echantillon(session, survey, {"Dakar": 1})

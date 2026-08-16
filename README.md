@@ -156,6 +156,80 @@ docker compose up --build     # API sur http://localhost:8000
 
 Détail complet dans [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
+### Le pipeline, table par table
+
+Chaque couche est produite par des modèles SQL numérotés, exécutés dans
+l'ordre. Voici ce qui entre, ce qui en sort, et par quel fichier.
+
+```
+BASE OPÉRATIONNELLE (SQLite / PostgreSQL)
+│
+│   data_platform/contracts.py — 13 contrats de données
+│   extraction incrémentale par watermark
+▼
+BRONZE  var/lake/bronze/<table>/ingest_date=AAAA-MM-JJ/data.parquet
+├── surveys              ├── interviews         ├── sample_units
+├── questionnaires       ├── answers            ├── enumerators
+├── sections             ├── assignments        ├── users
+├── questions            ├── paradata           └── quotas
+└── choices
+│
+│   sql/silver/  — déduplication, typage, masquage des données personnelles
+▼
+SILVER
+├── 010_silver_survey.sql ······· silver_survey
+├── 020_silver_question.sql ····· silver_question
+│                                 silver_choice
+├── 030_silver_interview.sql ···· silver_interview      ← + enquêteur, géo, poids
+├── 040_silver_answer.sql ······· silver_answer         ← données personnelles masquées ici
+└── 050_silver_fieldwork.sql ···· silver_enumerator
+                                  silver_assignment
+                                  silver_geography
+                                  silver_paradata_session
+│
+│   sql/gold/  — schéma en étoile
+▼
+GOLD
+├── 010_dimensions.sql
+│   ├── dim_date ················ générée sur la période de collecte
+│   ├── dim_survey
+│   ├── dim_collection_service ·· miroir du catalogue d'entrée
+│   ├── dim_enumerator
+│   ├── dim_question ············ toutes versions de questionnaire
+│   ├── dim_geography ··········· avec membre « inconnu »
+│   └── dim_interview_status
+├── 020_facts.sql
+│   ├── fact_interview ·········· grain : un entretien
+│   ├── fact_answer ············· grain : une réponse
+│   ├── fact_fieldwork_daily ···· grain : enquêteur × jour × mode
+│   ├── fact_sample_coverage
+│   └── fact_quota
+└── 030_marts.sql
+    ├── mart_frequency_table ···· tris à plat pondérés
+    ├── mart_numeric_summary ···· moyennes, médianes, IC 95 %
+    ├── mart_collection_progress
+    ├── mart_enumerator_scorecard
+    ├── mart_mode_effect ········ écarts entre canaux
+    └── mart_quality_overview
+│
+│   data_platform/quality.py — 18 contrôles
+│   ┌── un contrôle bloquant en échec arrête ici : pas d'export
+▼
+EXPORT  var/lake/gold/*.parquet
+│
+├──────────────► Power BI · Power Apps · Power Automate
+└──────────────► reports/generate.py ──► rapport_*.tex ──► PDF
+```
+
+Commandes correspondantes :
+
+| Étape | Commande |
+|---|---|
+| Base → bronze | `make bronze` |
+| Silver + gold + export | `make transform` |
+| Chaîne complète | `make pipeline` |
+| Contrôles seuls | `make quality` |
+
 ### Arborescence
 
 | Répertoire | Contenu |

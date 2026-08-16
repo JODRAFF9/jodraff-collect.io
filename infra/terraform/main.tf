@@ -206,13 +206,13 @@ resource "azurerm_storage_management_policy" "lifecycle" {
 # ---------------------------------------------------------------------------
 
 resource "azurerm_mssql_server" "warehouse" {
-  name                         = "sql-${local.prefix}"
-  resource_group_name          = azurerm_resource_group.main.name
-  location                     = azurerm_resource_group.main.location
-  version                      = "12.0"
-  minimum_tls_version          = "1.2"
+  name                          = "sql-${local.prefix}"
+  resource_group_name           = azurerm_resource_group.main.name
+  location                      = azurerm_resource_group.main.location
+  version                       = "12.0"
+  minimum_tls_version           = "1.2"
   public_network_access_enabled = var.allow_public_access
-  tags                         = local.tags
+  tags                          = local.tags
 
   azuread_administrator {
     login_username = var.sql_admin_group_name
@@ -228,13 +228,13 @@ resource "azurerm_mssql_server" "warehouse" {
 }
 
 resource "azurerm_mssql_database" "gold" {
-  name        = "gold"
-  server_id   = azurerm_mssql_server.warehouse.id
-  sku_name    = var.sql_sku
-  collation   = "French_CI_AS"
-  max_size_gb = var.sql_max_size_gb
+  name           = "gold"
+  server_id      = azurerm_mssql_server.warehouse.id
+  sku_name       = var.sql_sku
+  collation      = "French_CI_AS"
+  max_size_gb    = var.sql_max_size_gb
   zone_redundant = var.environment == "prod"
-  tags        = local.tags
+  tags           = local.tags
 
   short_term_retention_policy {
     retention_days = var.environment == "prod" ? 35 : 7

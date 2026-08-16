@@ -7,6 +7,8 @@ confidentialite tiennent sur tout le parcours.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from apps.api.models import Questionnaire, Quota, SurveyStatus, UserRole
@@ -301,3 +303,116 @@ class TestRapport:
         assert escape_tex("Coût & marge 100%") == r"Coût \& marge 100\%"
         assert escape_tex("a_b") == r"a\_b"
         assert escape_tex(None) == ""
+
+
+class TestRobustesseDuPipeline:
+    """Comportements du pipeline qui n'apparaissent qu'a la deuxieme execution
+    ou lorsque les donnees sont incoherentes. Ce sont ceux qui cassent en
+    production et jamais en developpement."""
+
+    def test_table_vide_puis_alimentee(self, session, org, users, survey):
+        """Une table sans donnee au premier passage, alimentee ensuite.
+
+        Cas courant : une enquete demarre sans quota ni paradonnee, puis en
+        acquiert. La couche bronze declare alors une table vide au premier
+        passage et une vue au second ; les deux natures d'objet ne doivent pas
+        entrer en collision.
+        """
+        from apps.api.models import Quota
+
+        # Premier passage : aucun quota n'existe encore.
+        assert session.query(Quota).count() == 0
+        session.commit()
+
+        run_bronze(full_refresh=True)
+        connexion = connect_warehouse()
+        try:
+            bronze.register_bronze_views(connexion)
+            assert connexion.execute("SELECT COUNT(*) FROM bronze_quotas").fetchone()[0] == 0
+        finally:
+            connexion.close()
+
+        # Un quota apparait entre les deux executions.
+        session.add(
+            Quota(survey_id=survey.id, label="Ajoute apres coup",
+                  dimensions={"majeur": "oui"}, target=10)
+        )
+        session.commit()
+
+        run_bronze(full_refresh=True)
+        connexion = connect_warehouse()
+        try:
+            bronze.register_bronze_views(connexion)
+            assert connexion.execute("SELECT COUNT(*) FROM bronze_quotas").fetchone()[0] == 1
+        finally:
+            connexion.close()
+
+    def test_pipeline_rejouable(self, enquete_collectee):
+        """Deux executions consecutives doivent donner le meme resultat."""
+        from data_platform.runner import run_pipeline
+
+        premier = run_pipeline(full_refresh=True)
+        assert not premier.failed, premier.to_dict()
+
+        connexion = connect_warehouse(read_only=True)
+        try:
+            avant = connexion.execute("SELECT COUNT(*) FROM fact_interview").fetchone()[0]
+        finally:
+            connexion.close()
+
+        second = run_pipeline(full_refresh=True)
+        assert not second.failed, second.to_dict()
+
+        connexion = connect_warehouse(read_only=True)
+        try:
+            apres = connexion.execute("SELECT COUNT(*) FROM fact_interview").fetchone()[0]
+        finally:
+            connexion.close()
+
+        assert avant == apres == 4
+
+    def test_un_controle_bloquant_annule_l_export(self, entrepot_construit, monkeypatch):
+        """Une couche gold incoherente ne doit pas atteindre la restitution.
+
+        L'export precedent reste alors en place : les consommateurs continuent
+        d'afficher le dernier etat valide plutot que des chiffres faux.
+        """
+        from data_platform import quality as quality_module
+        from data_platform.runner import run_pipeline
+        from platform_core.config import settings
+
+        export = Path(settings.layer_path("gold")) / "fact_interview.parquet"
+        assert export.exists(), "l'export initial doit exister"
+        empreinte_avant = export.stat().st_mtime_ns
+
+        def controle_en_echec(_con):
+            return [
+                {
+                    "name": "controle_simule",
+                    "severity": "error",
+                    "passed": False,
+                    "failing_rows": 3,
+                    "description": "Echec simule pour le test.",
+                }
+            ]
+
+        monkeypatch.setattr(quality_module, "run_checks", controle_en_echec)
+
+        rapport = run_pipeline(full_refresh=True)
+        etapes = {etape.name: etape.status for etape in rapport.steps}
+
+        assert rapport.failed
+        assert etapes["quality"] == "failed"
+        assert etapes["export_gold"] == "skipped"
+        # L'export precedent est intact.
+        assert export.stat().st_mtime_ns == empreinte_avant
+
+    def test_l_ordre_des_etapes_place_les_controles_avant_l_export(self, entrepot_construit):
+        """Verifie l'ordre reellement execute, et non l'intention documentee."""
+        from data_platform.runner import run_pipeline
+
+        rapport = run_pipeline(full_refresh=True)
+        noms = [etape.name for etape in rapport.steps]
+
+        assert not rapport.failed, rapport.to_dict()
+        assert noms.index("quality") < noms.index("export_gold")

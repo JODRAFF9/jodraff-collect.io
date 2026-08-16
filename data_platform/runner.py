@@ -296,8 +296,10 @@ def run_pipeline(full_refresh: bool = False, skip_bronze: bool = False) -> RunRe
             if step.status == "failed":
                 return report
 
-        report.steps.append(export_gold(con))
-
+        # Les controles precedent l'export : une couche gold incoherente ne
+        # doit jamais atteindre Power BI ni les rapports. En cas d'echec
+        # bloquant, l'export precedent reste en place, et les consommateurs
+        # continuent d'afficher le dernier etat valide.
         start = time.perf_counter()
         checks = run_checks(con)
         failures = [c for c in checks if not c["passed"] and c["severity"] == "error"]
@@ -309,6 +311,22 @@ def run_pipeline(full_refresh: bool = False, skip_bronze: bool = False) -> RunRe
                 detail={"checks": checks, "failures": len(failures)},
             )
         )
+        if failures:
+            report.steps.append(
+                StepResult(
+                    name="export_gold",
+                    status="skipped",
+                    duration_ms=0,
+                    detail={
+                        "reason": "Export annule : "
+                        f"{len(failures)} controle(s) bloquant(s) en echec.",
+                        "failed_checks": [c["name"] for c in failures],
+                    },
+                )
+            )
+            return report
+
+        report.steps.append(export_gold(con))
     finally:
         con.close()
 

@@ -213,22 +213,31 @@ def register_bronze_views(con: duckdb.DuckDBPyConnection) -> list[str]:
 
     for contract in CONTRACTS:
         table_dir = root / contract.name
+        name = f"bronze_{contract.name}"
+
+        # Un objet peut changer de nature entre deux executions : une table
+        # sans donnee au premier passage devient une vue des qu'un fichier
+        # existe. DuckDB refuse de remplacer une table par une vue, il faut
+        # donc supprimer l'objet precedent quelle que soit sa nature.
+        con.execute(f"DROP VIEW IF EXISTS {name}")
+        con.execute(f"DROP TABLE IF EXISTS {name}")
+
         if not table_dir.exists() or not any(table_dir.rglob("*.parquet")):
             # Table jamais ingeree : on cree une table vide mais typee, pour que
             # le SQL des couches silver et gold s'execute malgre tout.
             con.execute(
-                f"CREATE OR REPLACE TABLE bronze_{contract.name} "
+                f"CREATE TABLE {name} "
                 f"({contract.duckdb_schema()}, _ingested_at TIMESTAMP, _batch_id VARCHAR, "
                 "_source_system VARCHAR)"
             )
-            registered.append(f"bronze_{contract.name} (vide)")
+            registered.append(f"{name} (vide)")
             continue
 
         pattern = (table_dir / "**" / "*.parquet").as_posix()
         con.execute(
-            f"CREATE OR REPLACE VIEW bronze_{contract.name} AS "
+            f"CREATE VIEW {name} AS "
             f"SELECT * FROM read_parquet('{pattern}', union_by_name=true, hive_partitioning=true)"
         )
-        registered.append(f"bronze_{contract.name}")
+        registered.append(name)
 
     return registered
