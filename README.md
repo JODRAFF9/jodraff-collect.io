@@ -44,22 +44,93 @@ car un questionnaire multimode doit se concevoir pour le mode le plus contraint.
 
 ---
 
-## Démarrage
+## Exécuter
+
+Prérequis : **Python 3.11 ou plus**. Rien d'autre pour les quatre premières
+étapes — la base et l'entrepôt sont des fichiers locaux. Seul le rapport PDF
+demande un moteur LaTeX (étape 4).
+
+### 1. Installer
 
 ```bash
-make install          # dépendances
-make demo             # jeu de démonstration + pipeline complet
-make serve            # http://localhost:8000
-make report           # rapport LaTeX de l'enquête de démonstration
-make test             # 152 tests
+git clone https://github.com/JODRAFF9/jodraff-collect
+cd jodraff-collect
+
+python -m venv .venv && source .venv/bin/activate   # Windows : .venv\Scripts\activate
+make install          # ou : pip install -e ".[dev]"
 ```
 
-Le jeu de démonstration crée une enquête multimode CAPI + CATI : questionnaire
-publié de 12 questions, 9 enquêteurs, 600 unités d'échantillon affectées par
-zone, 380 entretiens réalisés avec paradonnées et scores de qualité.
+### 2. Créer des données et alimenter l'entrepôt
 
-Comptes de démonstration (mot de passe `motdepasse123`) :
+```bash
+make demo
+```
+
+Cette commande enchaîne deux choses : elle crée un jeu de démonstration
+(enquête multimode CAPI + CATI, questionnaire publié de 12 questions,
+9 enquêteurs, 600 unités d'échantillon affectées par zone, 380 entretiens avec
+paradonnées et scores de qualité), puis exécute le pipeline complet
+bronze → silver → gold → contrôles. Comptez une seconde environ.
+
+### 3. Lancer la plateforme
+
+```bash
+make serve
+```
+
+| Adresse | Contenu |
+|---|---|
+| <http://localhost:8000> | Catalogue des services de collecte et simulateur |
+| <http://localhost:8000/docs> | Documentation interactive des 42 routes |
+| <http://localhost:8000/health> | Sonde de disponibilité |
+
+Comptes de démonstration, mot de passe `motdepasse123` :
 `conception@`, `supervision@`, `analyse@`, `admin@jodraff.test`.
+
+Exemple d'appel sans authentification, le catalogue étant public :
+
+```bash
+curl -X POST localhost:8000/api/v1/collection-services/estimate \
+  -H 'Content-Type: application/json' \
+  -d '{"collection_services": ["CAWI", "CATI"], "sample_size": 1200}'
+```
+
+### 4. Produire le rapport
+
+```bash
+make report SURVEY=ECVM2026
+```
+
+Le PDF atterrit dans `var/reports/ECVM2026/`. **Cette étape est la seule qui
+compile quelque chose** et demande donc un moteur LaTeX ; sans lui, seul le
+`.tex` est produit. Installation et dépannage :
+[`reports/README.md`](reports/README.md).
+
+### 5. Vérifier
+
+```bash
+make test             # 152 tests
+make lint             # contrôle de style
+```
+
+### Commandes utiles
+
+```bash
+make pipeline         # rejouer bronze → silver → gold
+make transform        # rejouer silver et gold sans réextraire
+make quality          # contrôles qualité de l'entrepôt seuls
+make clean            # supprimer lac, entrepôt et rapports
+make reset            # tout remettre à zéro, base comprise
+make help             # liste complète
+```
+
+### Avec Docker
+
+Pour travailler sur PostgreSQL plutôt que SQLite :
+
+```bash
+docker compose up --build     # API sur http://localhost:8000
+```
 
 ---
 
@@ -177,6 +248,8 @@ Python, donc les chiffres du PDF sont ceux du tableau de bord, par construction.
 ```bash
 make report SURVEY=ECVM2026
 ```
+
+Prérequis LaTeX et dépannage : [`reports/README.md`](reports/README.md).
 
 Le document produit comporte page de couverture, synthèse à indicateurs,
 courbe de collecte comparée à la trajectoire cible, méthodologie, tris à plat
