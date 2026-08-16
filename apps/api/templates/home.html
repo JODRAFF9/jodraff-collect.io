@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block content %}
+
+<section class="hero">
+  <p class="eyebrow">Étape 1 sur 5 — point de départ</p>
+  <h1>Quel service de collecte pour votre enquête&nbsp;?</h1>
+  <p class="lead">
+    Le mode retenu détermine la suite du parcours&nbsp;: les types de questions autorisés,
+    la mobilisation ou non d'un réseau d'enquêteurs, le mode d'alimentation de l'entrepôt
+    et les indicateurs de pilotage. Plusieurs services peuvent être combinés.
+  </p>
+</section>
+
+<section class="estimator" id="estimator">
+  <h2>Simuler le dispositif</h2>
+  <p class="muted">Sélectionnez un ou plusieurs services, indiquez la taille d'échantillon visée.</p>
+  <form id="estimate-form">
+    <div class="chips">
+      {% for service in services %}
+      <label class="chip">
+        <input type="checkbox" name="service" value="{{ service.code }}">
+        <span>{{ service.code }}</span>
+      </label>
+      {% endfor %}
+    </div>
+    <div class="row">
+      <label for="sample">Échantillon visé</label>
+      <input type="number" id="sample" name="sample" value="1200" min="1" step="50">
+      <button type="submit">Estimer</button>
+    </div>
+  </form>
+  <div id="estimate-result" class="result" hidden></div>
+</section>
+
+<section class="catalog">
+  <h2>Catalogue</h2>
+  <div class="grid">
+    {% for service in services %}
+    <article class="card">
+      <header>
+        <span class="badge badge-{{ service.channel }}">{{ service.channel }}</span>
+        <h3><a href="/services/{{ service.code }}">{{ service.name }}</a></h3>
+        <p class="tagline">{{ service.tagline }}</p>
+      </header>
+
+      <dl class="metrics">
+        <div><dt>Durée type</dt><dd>{{ service.typical_duration_minutes }} min</dd></div>
+        <div><dt>Taux de réponse</dt><dd>{{ (service.typical_response_rate * 100) | round(0) | int }}&nbsp;%</dd></div>
+        <div><dt>Coût</dt><dd class="cost">{{ "●" * service.cost_index }}<span class="dim">{{ "●" * (5 - service.cost_index) }}</span></dd></div>
+      </dl>
+
+      <ul class="caps">
+        {% if service.capabilities.offline %}<li>Hors ligne</li>{% endif %}
+        {% if service.capabilities.geolocation %}<li>GPS</li>{% endif %}
+        {% if service.capabilities.media_capture %}<li>Médias</li>{% endif %}
+        {% if service.capabilities.audio_audit %}<li>Audit audio</li>{% endif %}
+        {% if service.capabilities.call_scheduling %}<li>Rendez-vous</li>{% endif %}
+        {% if service.capabilities.double_entry %}<li>Double saisie</li>{% endif %}
+        {% if service.capabilities.self_administered %}<li>Auto-administré</li>{% endif %}
+        {% if service.capabilities.requires_enumerator %}<li class="warn">Enquêteurs requis</li>{% endif %}
+      </ul>
+
+      <p class="desc">{{ service.description }}</p>
+      <a class="more" href="/services/{{ service.code }}">Voir le détail →</a>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+
+<script>
+document.getElementById('estimate-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const services = [...document.querySelectorAll('input[name=service]:checked')].map(i => i.value);
+  const box = document.getElementById('estimate-result');
+
+  if (services.length === 0) {
+    box.hidden = false;
+    box.innerHTML = '<p class="error">Sélectionnez au moins un service de collecte.</p>';
+    return;
+  }
+
+  const response = await fetch('/api/v1/collection-services/estimate', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      collection_services: services,
+      sample_size: Number(document.getElementById('sample').value)
+    })
+  });
+
+  if (!response.ok) {
+    box.hidden = false;
+    box.innerHTML = '<p class="error">Estimation impossible.</p>';
+    return;
+  }
+
+  const data = await response.json();
+  box.hidden = false;
+  box.innerHTML = `
+    <div class="kpis">
+      <div><span>${(data.expected_response_rate * 100).toFixed(0)}&nbsp;%</span><label>Taux de réponse attendu</label></div>
+      <div><span>${data.contacts_to_mobilise.toLocaleString('fr-FR')}</span><label>Contacts à mobiliser</label></div>
+      <div><span>${data.total_field_hours.toLocaleString('fr-FR')}&nbsp;h</span><label>Charge terrain</label></div>
+      <div><span>${data.suggested_enumerators || '—'}</span><label>Enquêteurs suggérés</label></div>
+    </div>
+    <p class="muted">Types de questions communs à ce dispositif&nbsp;:
+      ${data.allowed_question_types.map(t => `<code>${t}</code>`).join(' ')}</p>`;
+});
+</script>
+{% endblock %}

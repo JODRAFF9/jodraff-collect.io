@@ -1,0 +1,1 @@
+"""Applications de la plateforme."""

@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+
+<nav class="breadcrumb"><a href="/">Services de collecte</a> / {{ service.code }}</nav>
+
+<article class="detail">
+  <span class="badge badge-{{ service.channel }}">{{ service.channel }}</span>
+  <h1>{{ service.name }}</h1>
+  <p class="lead">{{ service.tagline }}</p>
+  <p>{{ service.description }}</p>
+
+  <div class="two-col">
+    <section>
+      <h2>Recommandé pour</h2>
+      <ul>{% for item in service.recommended_for %}<li>{{ item }}</li>{% endfor %}</ul>
+    </section>
+    <section>
+      <h2>Limites</h2>
+      <ul class="limits">{% for item in service.limitations %}<li>{{ item }}</li>{% endfor %}</ul>
+    </section>
+  </div>
+
+  <section>
+    <h2>Mise en place</h2>
+    <ol>{% for step in service.setup_checklist %}<li>{{ step }}</li>{% endfor %}</ol>
+  </section>
+
+  <section>
+    <h2>Types de questions disponibles</h2>
+    <p class="types">{% for t in service.allowed_question_types %}<code>{{ t }}</code>{% endfor %}</p>
+  </section>
+
+  <section>
+    <h2>Alimentation de l'entrepôt</h2>
+    <p class="pipeline">{{ service.bronze_ingestion }}</p>
+  </section>
+</article>
+{% endblock %}
